@@ -1,5 +1,5 @@
 // Vitest setup file for DOM testing
-import { expect, vi } from 'vitest';
+import { vi } from 'vitest';
 
 // Mock window.open for LinkedIn popup tests
 Object.defineProperty(window, 'open', {
