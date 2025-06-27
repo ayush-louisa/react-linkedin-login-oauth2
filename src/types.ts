@@ -15,5 +15,5 @@ export interface useLinkedInType {
 }
 
 export interface LinkedInType extends useLinkedInType {
-  children: ({ linkedInLogin }) => JSX.Element;
+  children: ({ linkedInLogin }: { linkedInLogin: () => void }) => JSX.Element;
 }

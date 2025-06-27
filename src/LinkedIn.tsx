@@ -1,4 +1,4 @@
-import { LinkedInType } from './types';
+import type { LinkedInType } from './types';
 import { useLinkedIn } from './useLinkedIn';
 
 export function LinkedIn({

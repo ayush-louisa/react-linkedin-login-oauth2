@@ -17,7 +17,7 @@ export function LinkedInCallback() {
     } else if (params.error) {
       const errorMessage =
         params.error_description || 'Login failed. Please try again.';
-      window.opener &&
+      if (window.opener) {
         window.opener.postMessage(
           {
             error: params.error,
@@ -27,17 +27,19 @@ export function LinkedInCallback() {
           },
           window.location.origin,
         );
+      }
       // Close tab if user cancelled login
       if (params.error === 'user_cancelled_login') {
         window.close();
       }
     }
     if (params.code) {
-      window.opener &&
+      if (window.opener) {
         window.opener.postMessage(
           { code: params.code, state: params.state, from: 'Linked In' },
           window.location.origin,
         );
+      }
     }
   }, []);
 

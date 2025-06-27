@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useLinkedInType } from './types';
+import type { useLinkedInType } from './types';
 import { LINKEDIN_OAUTH2_STATE } from './utils';
 
 const getPopupPositionProperties = ({ width = 600, height = 600 }) => {
@@ -28,8 +28,8 @@ export function useLinkedIn({
   state = '',
   closePopupMessage = 'User closed the popup',
 }: useLinkedInType) {
-  const popupRef = useRef<Window>(null);
-  const popUpIntervalRef = useRef<number>(null);
+  const popupRef = useRef<Window | null>(null);
+  const popUpIntervalRef = useRef<number | null>(null);
 
   const receiveMessage = useCallback(
     (event: MessageEvent) => {
@@ -38,20 +38,32 @@ export function useLinkedIn({
         if (event.data.errorMessage && event.data.from === 'Linked In') {
           // Prevent CSRF attack by testing state
           if (event.data.state !== savedState) {
-            popupRef.current && popupRef.current.close();
+            if (popupRef.current) {
+              popupRef.current.close();
+            }
             return;
           }
-          onError && onError(event.data);
-          popupRef.current && popupRef.current.close();
+          if (onError) {
+            onError(event.data);
+          }
+          if (popupRef.current) {
+            popupRef.current.close();
+          }
         } else if (event.data.code && event.data.from === 'Linked In') {
           // Prevent CSRF attack by testing state
           if (event.data.state !== savedState) {
             console.error('State does not match');
-            popupRef.current && popupRef.current.close();
+            if (popupRef.current) {
+              popupRef.current.close();
+            }
             return;
           }
-          onSuccess && onSuccess(event.data.code);
-          popupRef.current && popupRef.current.close();
+          if (onSuccess) {
+            onSuccess(event.data.code);
+          }
+          if (popupRef.current) {
+            popupRef.current.close();
+          }
         }
       }
     },
@@ -67,7 +79,9 @@ export function useLinkedIn({
         popupRef.current = null;
       }
       if (popUpIntervalRef.current) {
-        window.clearInterval(popUpIntervalRef.current);
+        if (popUpIntervalRef.current !== null) {
+          window.clearInterval(popUpIntervalRef.current);
+        }
         popUpIntervalRef.current = null;
       }
     };
@@ -97,13 +111,17 @@ export function useLinkedIn({
     );
 
     if (popUpIntervalRef.current) {
-      window.clearInterval(popUpIntervalRef.current);
+      if (popUpIntervalRef.current !== null) {
+        window.clearInterval(popUpIntervalRef.current);
+      }
       popUpIntervalRef.current = null;
     }
     popUpIntervalRef.current = window.setInterval(() => {
       try {
         if (popupRef.current && popupRef.current.closed) {
-          window.clearInterval(popUpIntervalRef.current);
+          if (popUpIntervalRef.current !== null) {
+            window.clearInterval(popUpIntervalRef.current);
+          }
           popUpIntervalRef.current = null;
           if (onError) {
             onError({
@@ -114,7 +132,9 @@ export function useLinkedIn({
         }
       } catch (error) {
         console.error(error);
-        window.clearInterval(popUpIntervalRef.current);
+        if (popUpIntervalRef.current !== null) {
+          window.clearInterval(popUpIntervalRef.current);
+        }
         popUpIntervalRef.current = null;
       }
     }, 1000);
