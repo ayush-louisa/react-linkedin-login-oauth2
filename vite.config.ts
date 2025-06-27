@@ -28,8 +28,29 @@ export default defineConfig({
           'react-dom': 'ReactDOM',
         },
       },
+      // Additional rollup options for production builds
+      ...(process.env.BUILD_MODE !== 'dev' && {
+        plugins: [
+          // Drop console statements in production
+          {
+            name: 'drop-console',
+            renderChunk(code, chunk) {
+              const transformedCode = code.replace(
+                /console\.(log|info|warn|error|debug)\([^)]*\);?/g,
+                '',
+              );
+              return {
+                code: transformedCode,
+                map: null, // Explicitly set map to null since we're doing simple replacement
+              };
+            },
+          },
+        ],
+      }),
     },
     sourcemap: true,
+    minify: process.env.BUILD_MODE !== 'dev',
+    target: 'es2015',
   },
   test: {
     globals: true,
