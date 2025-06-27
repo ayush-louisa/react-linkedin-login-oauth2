@@ -1,9 +1,21 @@
-import { parse } from '../utils';
+import { describe, it, expect } from 'vitest';
+import { parseUrlParams } from '../utils';
 
-test('parse', () => {
-  expect(parse('?a=b')).toEqual({ a: 'b' });
-  expect(parse('?a=b&c=d')).toEqual({ a: 'b', c: 'd' });
-  expect(parse('?')).toEqual({});
-  expect(parse('')).toEqual({});
-  expect(parse('?a%20=b%20')).toEqual({ 'a ': 'b ' });
+describe('parseUrlParams', () => {
+  it('should parse query string with single parameter', () => {
+    expect(parseUrlParams('?a=b')).toEqual({ a: 'b' });
+  });
+
+  it('should parse query string with multiple parameters', () => {
+    expect(parseUrlParams('?a=b&c=d')).toEqual({ a: 'b', c: 'd' });
+  });
+
+  it('should return empty object for empty query string', () => {
+    expect(parseUrlParams('?')).toEqual({});
+    expect(parseUrlParams('')).toEqual({});
+  });
+
+  it('should handle URL encoded parameters', () => {
+    expect(parseUrlParams('?a%20=b%20')).toEqual({ 'a ': 'b ' });
+  });
 });
