@@ -18,7 +18,7 @@ export default defineConfig({
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'ReactLinkedInLoginOAuth2',
       formats: ['es', 'cjs'],
-      fileName: (format) => `index.${format === 'es' ? 'esm' : format}.js`,
+      fileName: (format) => `index.${format === 'es' ? 'esm' : 'cjs'}.js`,
     },
     rollupOptions: {
       external: ['react', 'react-dom'],
@@ -34,7 +34,7 @@ export default defineConfig({
           // Drop console statements in production
           {
             name: 'drop-console',
-            renderChunk(code, chunk) {
+            renderChunk(code) {
               const transformedCode = code.replace(
                 /console\.(log|info|warn|error|debug)\([^)]*\);?/g,
                 '',
