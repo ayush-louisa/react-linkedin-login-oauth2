@@ -24,7 +24,7 @@ export default tseslint.config(
       },
     },
     plugins: {
-      'react': react,
+      react: react,
       'react-hooks': reactHooks,
     },
     rules: {
@@ -44,6 +44,12 @@ export default tseslint.config(
   },
   prettier,
   {
-    ignores: ['dist/**', 'build/**', 'node_modules/**', 'preview/**', 'examples/**'],
+    ignores: [
+      'dist/**',
+      'build/**',
+      'node_modules/**',
+      'preview/**',
+      'examples/**',
+    ],
   },
 );
