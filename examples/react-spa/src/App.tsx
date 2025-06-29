@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import { useLinkedIn } from 'react-linkedin-login-oauth2'
-import './App.css'
+import { useState } from 'react';
+import reactLogo from './assets/react.svg';
+import viteLogo from '/vite.svg';
+import { useLinkedIn } from 'react-linkedin-login-oauth2';
+import './App.css';
 
 function App() {
   const [count, setCount] = useState(0);
@@ -11,17 +11,19 @@ function App() {
 
   const { linkedInLogin } = useLinkedIn({
     clientId: import.meta.env.VITE_LINKEDIN_CLIENT_ID || '86vhj2q7ukf83q',
-    redirectUri: `${typeof window === 'object' && window.location.origin
-      }/linkedin`,
+    redirectUri: `${
+      typeof window === 'object' && window.location.origin
+    }/linkedin`,
     onSuccess: (code) => {
       console.log(code);
       setCode(code);
     },
-    scope: 'r_emailaddress',
+    scope: 'email',
     onError: (error) => {
       console.log(error);
       setErrorMessage(error.errorMessage);
     },
+    debug: true, // Enable debug mode for detailed logs
   });
 
   return (
@@ -39,15 +41,18 @@ function App() {
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}
         </button>
-        <button onClick={linkedInLogin} style={{
-          background: '#0077B5',
-          color: 'white',
-          border: 'none',
-          padding: '10px 20px',
-          cursor: 'pointer',
-          borderRadius: '4px',
-          marginLeft: '10px'
-        }}>
+        <button
+          onClick={linkedInLogin}
+          style={{
+            background: '#0077B5',
+            color: 'white',
+            border: 'none',
+            padding: '10px 20px',
+            cursor: 'pointer',
+            borderRadius: '4px',
+            marginLeft: '10px',
+          }}
+        >
           Login with LinkedIn
         </button>
         <p>
@@ -63,7 +68,7 @@ function App() {
         Click on the Vite and React logos to learn more
       </p>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
