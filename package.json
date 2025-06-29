@@ -1,7 +1,11 @@
 {
   "name": "react-linkedin-login-oauth2",
-  "version": "2.0.1",
+  "version": "3.0.0-alpha.1",
   "description": "React component for Linked In Log In feature using OAuth 2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@10.9.2",
   "type": "module",
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
@@ -57,15 +61,18 @@
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^3.2.4"
   },
-  "author": "nvh95",
-  "homepage": "https://github.com/nvh95/react-linkedin-login-oauth2",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "author": "ayush-louisa",
+  "homepage": "https://github.com/ayush-louisa/react-linkedin-login-oauth2",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nvh95/react-linkedin-login-oauth2.git"
+    "url": "git+https://github.com/ayush-louisa/react-linkedin-login-oauth2.git"
   },
   "bug": {
-    "url": "https://github.com/nvh95/react-linkedin-login-oauth2/issues"
+    "url": "https://github.com/ayush-louisa/react-linkedin-login-oauth2/issues"
   },
   "keywords": [
     "react",
