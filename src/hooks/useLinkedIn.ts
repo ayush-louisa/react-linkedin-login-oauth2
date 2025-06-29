@@ -11,7 +11,11 @@ import {
   getPopupPositionProperties,
 } from '../core/utils';
 import { buildLinkedInAuthUrl } from '../core/url';
-import { getLinkedInState, setLinkedInState } from '../core/storage';
+import {
+  getLinkedInState,
+  setLinkedInState,
+  clearLinkedInState,
+} from '../core/storage';
 import { createDebugLogger, setDebugMode } from '../core/debug';
 
 /**
@@ -80,6 +84,9 @@ export function useLinkedIn({
               errorMessage: event.data.errorMessage,
             });
           }
+          // Clear state after error validation and callback
+          debugLogger.log('Clearing state after error');
+          clearLinkedInState();
           if (popupRef.current) {
             debugLogger.log('Closing popup after error');
             popupRef.current.close();
@@ -107,6 +114,9 @@ export function useLinkedIn({
           if (onSuccess) {
             onSuccess(event.data.code);
           }
+          // Clear state after successful validation and callback
+          debugLogger.log('Clearing state after success');
+          clearLinkedInState();
           if (popupRef.current) {
             debugLogger.log('Closing popup after success');
             popupRef.current.close();

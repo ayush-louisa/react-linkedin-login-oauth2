@@ -19,7 +19,11 @@ import { useEffect, useState } from 'react';
 import type { LinkedInMobileCallbackConfig } from '../types/components';
 import type { LinkedInCallbackParams } from '../types/base';
 import { parseUrlParams } from '../core/url';
-import { getLinkedInState, setLinkedInMobileResult } from '../core/storage';
+import {
+  getLinkedInState,
+  setLinkedInMobileResult,
+  clearLinkedInState,
+} from '../core/storage';
 import { createDebugLogger, setDebugMode } from '../core/debug';
 import type { LinkedInMobileResult } from '../core/storage';
 
@@ -108,6 +112,9 @@ export function LinkedInMobileCallback({
         setStatus('invalid_state');
         setMessage(errorMsg);
 
+        // Clean up OAuth state
+        clearLinkedInState();
+
         // Store error result
         const errorResult: LinkedInMobileResult = {
           error: 'invalid_state',
@@ -137,6 +144,9 @@ export function LinkedInMobileCallback({
         setStatus('error');
         setMessage(errorMessage);
 
+        // Clean up OAuth state
+        clearLinkedInState();
+
         // Store error result
         const errorResult: LinkedInMobileResult = {
           error: params.error,
@@ -152,8 +162,14 @@ export function LinkedInMobileCallback({
         });
 
         // Auto-close on user cancellation
-        if (params.error === 'user_cancelled_login') {
-          debugLogger.log('User cancelled login, closing window in 2 seconds');
+        if (
+          params.error === 'user_cancelled_login' ||
+          params.error === 'user_cancelled_authorize'
+        ) {
+          debugLogger.log(
+            'User cancelled login/authorization, closing window in 2 seconds',
+            { error: params.error },
+          );
           setTimeout(() => {
             window.close();
           }, 2000);
@@ -170,6 +186,9 @@ export function LinkedInMobileCallback({
 
         setStatus('success');
         setMessage('Authentication successful! Redirecting...');
+
+        // Clean up OAuth state
+        clearLinkedInState();
 
         // Store success result
         const successResult: LinkedInMobileResult = {

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import type { LinkedInCallbackConfig } from '../types/components';
 import type { LinkedInCallbackParams } from '../types/base';
 import { parseUrlParams } from '../core/url';
-import { getLinkedInState } from '../core/storage';
+import { getLinkedInState, clearLinkedInState } from '../core/storage';
 import { createDebugLogger, setDebugMode } from '../core/debug';
 
 /**
@@ -42,6 +42,8 @@ export function LinkedInCallback({
         match: params.state === savedState,
       });
       setErrorMessage(error);
+      // Clean up state even on validation failure
+      clearLinkedInState();
     } else if (params.error) {
       const errorMessage =
         params.error_description || 'Login failed. Please try again.';
@@ -50,6 +52,9 @@ export function LinkedInCallback({
         errorDescription: params.error_description,
         finalErrorMessage: errorMessage,
       });
+
+      // Clean up state after processing error
+      clearLinkedInState();
 
       if (window.opener) {
         debugLogger.log('Posting error message to parent window', {
@@ -71,9 +76,15 @@ export function LinkedInCallback({
         debugLogger.warn('No window.opener available to post error message');
       }
 
-      // Close tab if user cancelled login
-      if (params.error === 'user_cancelled_login') {
-        debugLogger.log('User cancelled login, closing popup window');
+      // Close tab if user cancelled login or authorization
+      if (
+        params.error === 'user_cancelled_login' ||
+        params.error === 'user_cancelled_authorize'
+      ) {
+        debugLogger.log(
+          'User cancelled login/authorization, closing popup window',
+          { error: params.error },
+        );
         window.close();
       }
     }
