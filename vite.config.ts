@@ -24,7 +24,6 @@ export default defineConfig({
         core: resolve(__dirname, 'src/core/index.ts'),
         types: resolve(__dirname, 'src/types/index.ts'),
       },
-      formats: ['es', 'cjs'],
     },
     rollupOptions: {
       external: ['react', 'react-dom'],

@@ -46,6 +46,40 @@ npm install --save react-linkedin-login-oauth2@latest
 
 We will trigger `linkedInLogin` by using `useLinkedIn` (recommended) or `LinkedIn` (using render props technique) after click on Sign in with LinkedIn button, a popup window will show up and ask for the permission. After we accepted, the pop up window will redirect to `redirectUri` (should be `LinkedInCallback` component) then notice its opener about the authorization code Linked In provides us. You can use [react-router-dom](https://reactrouter.com/web) or [Next.js's file system routing](https://nextjs.org/docs/routing/introduction)
 
+## Mobile Support (Flutter Webviews)
+
+**NEW!** Version 2.1+ includes mobile-optimized components for Flutter webview environments:
+
+- **`useLinkedInMobile`** hook - Uses localStorage polling instead of `window.opener.postMessage`
+- **`LinkedInMobile`** component - Render prop pattern with loading states
+- **`LinkedInMobileCallback`** component - Handles OAuth callback in mobile environments
+
+Perfect for Flutter apps using `webview_flutter`, `flutter_inappwebview`, or other mobile webview solutions where `window.opener` is not available.
+
+See [MOBILE_README.md](./MOBILE_README.md) for detailed mobile implementation guide.
+
+```js
+import { useLinkedInMobile } from 'react-linkedin-login-oauth2';
+
+function MobileLinkedInLogin() {
+  const { linkedInLogin, isLoading } = useLinkedInMobile({
+    clientId: 'your-client-id',
+    redirectUri: `${window.location.origin}/linkedin-mobile`,
+    onSuccess: (code) => console.log('Mobile auth success:', code),
+    onError: (error) => console.error('Mobile auth error:', error),
+    pollInterval: 1000, // Check every second
+    maxPollAttempts: 300, // 5 minute timeout
+    debug: true,
+  });
+
+  return (
+    <button onClick={linkedInLogin} disabled={isLoading}>
+      {isLoading ? 'Connecting...' : 'Login with LinkedIn (Mobile)'}
+    </button>
+  );
+}
+```
+
 ## Usage
 
 First, we create a button and provide required props:
