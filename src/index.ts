@@ -6,9 +6,12 @@
 // Components - Tree-shakable imports
 export { LinkedIn } from './components/LinkedIn';
 export { LinkedInCallback } from './components/LinkedInCallback';
+export { LinkedInMobile } from './components/LinkedInMobile';
+export { LinkedInMobileCallback } from './components/LinkedInMobileCallback';
 
 // Hooks - Tree-shakable imports
 export { useLinkedIn } from './hooks/useLinkedIn';
+export { useLinkedInMobile } from './hooks/useLinkedInMobile';
 
 // Types - Tree-shakable imports
 export type * from './types';
@@ -29,6 +32,9 @@ export {
   getLinkedInState,
   setLinkedInState,
   clearLinkedInState,
+  getLinkedInMobileResult,
+  setLinkedInMobileResult,
+  clearLinkedInMobileResult,
 
   // General utilities
   generateRandomString,

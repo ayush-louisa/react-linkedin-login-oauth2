@@ -4,3 +4,4 @@
  */
 
 export { useLinkedIn } from './useLinkedIn';
+export { useLinkedInMobile } from './useLinkedInMobile';

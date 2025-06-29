@@ -4,6 +4,19 @@
  */
 
 export const LINKEDIN_OAUTH2_STATE_KEY = 'linkedin_oauth2_state';
+export const LINKEDIN_OAUTH2_MOBILE_RESULT_KEY =
+  'linkedin_oauth2_mobile_result';
+
+/**
+ * Mobile authentication result structure
+ */
+export interface LinkedInMobileResult {
+  code?: string;
+  error?: string;
+  errorMessage?: string;
+  state: string;
+  timestamp: number;
+}
 
 /**
  * Safely gets value from localStorage
@@ -70,4 +83,43 @@ export const setLinkedInState = (state: string): boolean => {
  */
 export const clearLinkedInState = (): boolean => {
   return removeStorageItem(LINKEDIN_OAUTH2_STATE_KEY);
+};
+
+/**
+ * Sets LinkedIn OAuth2 mobile result in storage
+ * @param result - Mobile authentication result
+ * @returns Success boolean
+ */
+export const setLinkedInMobileResult = (
+  result: LinkedInMobileResult,
+): boolean => {
+  return setStorageItem(
+    LINKEDIN_OAUTH2_MOBILE_RESULT_KEY,
+    JSON.stringify(result),
+  );
+};
+
+/**
+ * Gets LinkedIn OAuth2 mobile result from storage
+ * @returns Mobile result object or null
+ */
+export const getLinkedInMobileResult = (): LinkedInMobileResult | null => {
+  const stored = getStorageItem(LINKEDIN_OAUTH2_MOBILE_RESULT_KEY);
+  if (!stored) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(stored) as LinkedInMobileResult;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Removes LinkedIn OAuth2 mobile result from storage
+ * @returns Success boolean
+ */
+export const clearLinkedInMobileResult = (): boolean => {
+  return removeStorageItem(LINKEDIN_OAUTH2_MOBILE_RESULT_KEY);
 };

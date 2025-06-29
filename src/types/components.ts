@@ -62,3 +62,40 @@ export interface LinkedInCallbackConfig {
   /** Enable debug logging */
   debug?: boolean;
 }
+
+/**
+ * Additional options for mobile OAuth2 flow
+ */
+export interface LinkedInMobileOptions extends LinkedInOAuthOptions {
+  /** Polling interval in milliseconds for checking authentication result */
+  pollInterval?: number;
+  /** Maximum number of polling attempts before timeout */
+  maxPollAttempts?: number;
+}
+
+/**
+ * Complete configuration for useLinkedInMobile hook
+ */
+export interface UseLinkedInMobileConfig
+  extends LinkedInOAuthConfig,
+    LinkedInOAuthCallbacks,
+    LinkedInMobileOptions {}
+
+/**
+ * Configuration for LinkedInMobile component (render props)
+ */
+export interface LinkedInMobileComponentConfig extends UseLinkedInMobileConfig {
+  /** Render prop function */
+  children: (props: {
+    linkedInLogin: () => void;
+    isLoading: boolean;
+  }) => JSX.Element;
+}
+
+/**
+ * Configuration for LinkedInMobileCallback component
+ */
+export interface LinkedInMobileCallbackConfig {
+  /** Enable debug logging */
+  debug?: boolean;
+}
