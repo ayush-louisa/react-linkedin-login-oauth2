@@ -6,8 +6,8 @@
  * is running in a Flutter webview, specifically designed for InAppBrowser environments.
  *
  * Key differences from standard implementation:
- * - Uses URL-based communication instead of window.opener.postMessage
- * - Polls for state changes in localStorage instead of relying on postMessage events
+ * - Uses localStorage storage events instead of polling for real-time updates
+ * - Falls back to periodic checks only as a safety mechanism
  * - Handles mobile webview redirect patterns specific to Flutter apps
  * - Works with InAppBrowser where window.opener may not be available
  */
@@ -23,7 +23,9 @@ import {
   setLinkedInState,
   getLinkedInMobileResult,
   clearLinkedInMobileResult,
+  LINKEDIN_OAUTH2_MOBILE_RESULT_KEY,
 } from '../core/storage';
+import type { LinkedInMobileResult } from '../core/storage';
 import { createDebugLogger, setDebugMode } from '../core/debug';
 
 /**
@@ -41,13 +43,14 @@ export function useLinkedInMobile({
   state = '',
   closePopupMessage = 'User closed the popup',
   debug: debugMode = false,
-  pollInterval = 1000,
-  maxPollAttempts = 300, // 5 minutes with 1 second intervals
+  fallbackCheckInterval = 2000, // Fallback check every 2 seconds
+  maxWaitTime = 300000, // 5 minutes max wait time
 }: UseLinkedInMobileConfig) {
   const [isLoading, setIsLoading] = useState(false);
   const popupRef = useRef<Window | null>(null);
-  const pollIntervalRef = useRef<number | null>(null);
-  const pollAttemptsRef = useRef<number>(0);
+  const fallbackIntervalRef = useRef<number | null>(null);
+  const timeoutRef = useRef<number | null>(null);
+  const expectedStateRef = useRef<string>('');
   const debugLogger = useRef(
     createDebugLogger('LinkedIn OAuth2 Mobile'),
   ).current;
@@ -61,8 +64,8 @@ export function useLinkedInMobile({
       scope,
       state: state || 'auto-generated',
       debugMode,
-      pollInterval,
-      maxPollAttempts,
+      fallbackCheckInterval,
+      maxWaitTime,
     });
   }, [
     debugMode,
@@ -71,17 +74,137 @@ export function useLinkedInMobile({
     scope,
     state,
     debugLogger,
-    pollInterval,
-    maxPollAttempts,
+    fallbackCheckInterval,
+    maxWaitTime,
   ]);
+
+  // Handle authentication result
+  const handleAuthResult = useCallback(
+    (result: LinkedInMobileResult, source: string) => {
+      if (!result || !expectedStateRef.current) {
+        return;
+      }
+
+      debugLogger.log(`Authentication result received from ${source}`, {
+        hasCode: !!result.code,
+        hasError: !!result.error,
+        state: result.state,
+        expectedState: expectedStateRef.current,
+      });
+
+      // Validate state to prevent CSRF attacks
+      if (result.state !== expectedStateRef.current) {
+        debugLogger.error('State validation failed', {
+          receivedState: result.state,
+          expectedState: expectedStateRef.current,
+        });
+
+        // Clear result and cleanup
+        clearLinkedInMobileResult();
+        expectedStateRef.current = '';
+        setIsLoading(false);
+
+        if (onError) {
+          onError({
+            error: 'invalid_state',
+            errorMessage: 'Authentication state validation failed',
+          });
+        }
+        return;
+      }
+
+      // Clear the result from storage and cleanup
+      clearLinkedInMobileResult();
+      expectedStateRef.current = '';
+      setIsLoading(false);
+
+      if (result.error) {
+        debugLogger.log('Error result received', {
+          error: result.error,
+          errorMessage: result.errorMessage,
+        });
+
+        if (onError) {
+          onError({
+            error: result.error,
+            errorMessage: result.errorMessage || 'Authentication failed',
+          });
+        }
+      } else if (result.code) {
+        debugLogger.log('Success result received', {
+          code: result.code,
+        });
+
+        if (onSuccess) {
+          onSuccess(result.code);
+        }
+      }
+    },
+    [debugLogger, onError, onSuccess],
+  );
+
+  // Storage event listener for real-time updates
+  const handleStorageEvent = useCallback(
+    (event: StorageEvent) => {
+      if (event.key === LINKEDIN_OAUTH2_MOBILE_RESULT_KEY && event.newValue) {
+        debugLogger.log('Storage event detected for mobile result');
+
+        try {
+          const result = JSON.parse(event.newValue);
+          handleAuthResult(result, 'storage event');
+        } catch (error) {
+          debugLogger.error('Failed to parse storage event data', error);
+        }
+      }
+    },
+    [debugLogger, handleAuthResult],
+  );
+
+  // Fallback check function (less frequent than polling)
+  const checkForResult = useCallback(() => {
+    if (!expectedStateRef.current) {
+      return;
+    }
+
+    // Check if popup is closed
+    if (popupRef.current && popupRef.current.closed) {
+      debugLogger.log('Popup window was closed by user');
+
+      // Cleanup state
+      expectedStateRef.current = '';
+      setIsLoading(false);
+
+      if (onError) {
+        onError({
+          error: 'user_closed_popup',
+          errorMessage: closePopupMessage,
+        });
+      }
+      return;
+    }
+
+    // Check for result in localStorage
+    const result = getLinkedInMobileResult();
+    if (result) {
+      handleAuthResult(result, 'fallback check');
+    }
+  }, [debugLogger, closePopupMessage, onError, handleAuthResult]);
 
   // Cleanup function
   const cleanup = useCallback(() => {
     debugLogger.log('Cleaning up mobile LinkedIn authentication');
 
-    if (pollIntervalRef.current) {
-      clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
+    // Remove storage event listener
+    window.removeEventListener('storage', handleStorageEvent);
+
+    if (fallbackIntervalRef.current) {
+      clearInterval(fallbackIntervalRef.current);
+      fallbackIntervalRef.current = null;
+    }
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
 
     if (popupRef.current && !popupRef.current.closed) {
@@ -89,132 +212,29 @@ export function useLinkedInMobile({
       popupRef.current = null;
     }
 
-    pollAttemptsRef.current = 0;
+    expectedStateRef.current = '';
     setIsLoading(false);
-  }, [debugLogger]);
-
-  // Poll for authentication results
-  const pollForResult = useCallback(
-    (expectedState: string) => {
-      debugLogger.log('Starting polling for authentication result', {
-        expectedState,
-        pollInterval,
-        maxPollAttempts,
-      });
-
-      pollAttemptsRef.current = 0;
-
-      pollIntervalRef.current = window.setInterval(() => {
-        pollAttemptsRef.current++;
-
-        debugLogger.log('Polling attempt', {
-          attempt: pollAttemptsRef.current,
-          maxAttempts: maxPollAttempts,
-        });
-
-        // Check if popup is closed
-        if (popupRef.current && popupRef.current.closed) {
-          debugLogger.log('Popup window was closed by user');
-          cleanup();
-
-          if (onError) {
-            onError({
-              error: 'user_closed_popup',
-              errorMessage: closePopupMessage,
-            });
-          }
-          return;
-        }
-
-        // Check for result in localStorage
-        const result = getLinkedInMobileResult();
-        if (result) {
-          debugLogger.log('Authentication result found in storage', {
-            hasCode: !!result.code,
-            hasError: !!result.error,
-            state: result.state,
-          });
-
-          // Validate state to prevent CSRF attacks
-          if (result.state !== expectedState) {
-            debugLogger.error('State validation failed', {
-              receivedState: result.state,
-              expectedState,
-              match: result.state === expectedState,
-            });
-
-            cleanup();
-            clearLinkedInMobileResult();
-
-            if (onError) {
-              onError({
-                error: 'invalid_state',
-                errorMessage: 'Authentication state validation failed',
-              });
-            }
-            return;
-          }
-
-          // Clear the result from storage
-          clearLinkedInMobileResult();
-          cleanup();
-
-          if (result.error) {
-            debugLogger.log('Error result received', {
-              error: result.error,
-              errorMessage: result.errorMessage,
-            });
-
-            if (onError) {
-              onError({
-                error: result.error,
-                errorMessage: result.errorMessage || 'Authentication failed',
-              });
-            }
-          } else if (result.code) {
-            debugLogger.log('Success result received', {
-              code: result.code,
-            });
-
-            if (onSuccess) {
-              onSuccess(result.code);
-            }
-          }
-          return;
-        }
-
-        // Check if we've exceeded max attempts
-        if (pollAttemptsRef.current >= maxPollAttempts) {
-          debugLogger.warn('Polling timeout reached', {
-            attempts: pollAttemptsRef.current,
-            maxAttempts: maxPollAttempts,
-          });
-
-          cleanup();
-
-          if (onError) {
-            onError({
-              error: 'polling_timeout',
-              errorMessage: 'Authentication polling timed out',
-            });
-          }
-        }
-      }, pollInterval);
-    },
-    [
-      debugLogger,
-      pollInterval,
-      maxPollAttempts,
-      closePopupMessage,
-      onError,
-      onSuccess,
-      cleanup,
-    ],
-  );
+  }, [debugLogger, handleStorageEvent]);
 
   // Main login function
   const linkedInLogin = useCallback(() => {
     debugLogger.log('Starting mobile LinkedIn login process');
+
+    // Validate required configuration
+    if (!clientId || !redirectUri) {
+      debugLogger.error('Missing required configuration', {
+        hasClientId: !!clientId,
+        hasRedirectUri: !!redirectUri,
+      });
+
+      if (onError) {
+        onError({
+          error: 'configuration_error',
+          errorMessage: 'Missing required LinkedIn OAuth configuration',
+        });
+      }
+      return;
+    }
 
     if (isLoading) {
       debugLogger.warn('Login already in progress, ignoring new request');
@@ -230,6 +250,8 @@ export function useLinkedInMobile({
 
     // Generate state
     const generatedState = state || generateRandomString();
+    expectedStateRef.current = generatedState;
+
     debugLogger.log('Generated OAuth state', {
       state: generatedState,
       wasProvided: !!state,
@@ -263,21 +285,22 @@ export function useLinkedInMobile({
     });
     debugLogger.log('Generated LinkedIn OAuth URL', { url: authUrl });
 
-    // Open authentication popup
-    const popupProperties = getPopupPositionProperties({
-      width: 500,
-      height: 600,
-    });
-    debugLogger.log('Opening authentication popup', {
-      url: authUrl,
-      properties: popupProperties,
-    });
-
     try {
+      // Open authentication popup
+      const popupProperties = getPopupPositionProperties({
+        width: 500,
+        height: 600,
+      });
+      debugLogger.log('Opening authentication popup', {
+        url: authUrl,
+        properties: popupProperties,
+      });
+
       popupRef.current = window.open(authUrl, '_blank', popupProperties);
 
       if (!popupRef.current) {
         debugLogger.error('Failed to open popup window');
+        expectedStateRef.current = '';
         setIsLoading(false);
 
         if (onError) {
@@ -289,10 +312,33 @@ export function useLinkedInMobile({
         return;
       }
 
-      // Start polling for results
-      pollForResult(generatedState);
+      // Set up storage listener for real-time updates
+      debugLogger.log('Setting up storage event listener');
+      window.addEventListener('storage', handleStorageEvent);
+
+      // Set up fallback interval check (less frequent)
+      debugLogger.log('Setting up fallback check interval');
+      fallbackIntervalRef.current = window.setInterval(
+        checkForResult,
+        fallbackCheckInterval,
+      );
+
+      // Set up timeout
+      debugLogger.log('Setting up authentication timeout');
+      timeoutRef.current = window.setTimeout(() => {
+        debugLogger.warn('Authentication timeout reached');
+        cleanup();
+
+        if (onError) {
+          onError({
+            error: 'authentication_timeout',
+            errorMessage: 'Authentication timed out',
+          });
+        }
+      }, maxWaitTime);
     } catch (error) {
       debugLogger.error('Error opening popup window', error);
+      expectedStateRef.current = '';
       setIsLoading(false);
 
       if (onError) {
@@ -310,13 +356,43 @@ export function useLinkedInMobile({
     redirectUri,
     scope,
     onError,
-    pollForResult,
+    handleStorageEvent,
+    checkForResult,
+    fallbackCheckInterval,
+    maxWaitTime,
+    cleanup,
   ]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount only
   useEffect(() => {
-    return cleanup;
-  }, [cleanup]);
+    return () => {
+      debugLogger.log(
+        'Component unmounting - cleaning up mobile LinkedIn authentication',
+      );
+
+      // Clean up intervals and timeouts
+      if (fallbackIntervalRef.current) {
+        clearInterval(fallbackIntervalRef.current);
+        fallbackIntervalRef.current = null;
+      }
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      // Close popup
+      if (popupRef.current && !popupRef.current.closed) {
+        popupRef.current.close();
+        popupRef.current = null;
+      }
+
+      // Clear state
+      expectedStateRef.current = '';
+      setIsLoading(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // No dependencies to prevent re-running - only cleanup on unmount
 
   return {
     linkedInLogin,

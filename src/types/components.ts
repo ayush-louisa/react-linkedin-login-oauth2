@@ -67,10 +67,10 @@ export interface LinkedInCallbackConfig {
  * Additional options for mobile OAuth2 flow
  */
 export interface LinkedInMobileOptions extends LinkedInOAuthOptions {
-  /** Polling interval in milliseconds for checking authentication result */
-  pollInterval?: number;
-  /** Maximum number of polling attempts before timeout */
-  maxPollAttempts?: number;
+  /** Fallback check interval in milliseconds (default: 2000) */
+  fallbackCheckInterval?: number;
+  /** Maximum wait time in milliseconds before timeout (default: 300000 = 5 minutes) */
+  maxWaitTime?: number;
 }
 
 /**

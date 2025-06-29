@@ -153,6 +153,22 @@ export function useLinkedIn({
   const linkedInLogin = useCallback(() => {
     debugLogger.log('Starting LinkedIn login process');
 
+    // Validate required configuration
+    if (!clientId || !redirectUri) {
+      debugLogger.error('Missing required configuration', {
+        hasClientId: !!clientId,
+        hasRedirectUri: !!redirectUri,
+      });
+
+      if (onError) {
+        onError({
+          error: 'configuration_error',
+          errorMessage: 'Missing required LinkedIn OAuth configuration',
+        });
+      }
+      return;
+    }
+
     popupRef.current?.close();
 
     const generatedState = state || generateRandomString();

@@ -23,46 +23,66 @@ function App() {
     'desktop',
   );
 
+  // Conditionally initialize hooks based on current view to avoid interference
   // Desktop LinkedIn login
-  const { linkedInLogin } = useLinkedIn({
-    clientId: import.meta.env.VITE_LINKEDIN_CLIENT_ID || '86vhj2q7ukf83q',
-    redirectUri: `${
-      typeof window === 'object' && window.location.origin
-    }/linkedin`,
-    onSuccess: (code) => {
-      console.log('Desktop LinkedIn success:', code);
-      setCode(code);
-    },
-    scope: 'email',
-    onError: (error: LinkedInOAuthError) => {
-      console.log('Desktop LinkedIn error:', error);
-      setErrorMessage(error.errorMessage);
-    },
-    debug: true,
-  });
+  const { linkedInLogin } = useLinkedIn(
+    currentView === 'desktop'
+      ? {
+          clientId: import.meta.env.VITE_LINKEDIN_CLIENT_ID || '86vhj2q7ukf83q',
+          redirectUri: `${
+            typeof window === 'object' && window.location.origin
+          }/linkedin`,
+          onSuccess: (code) => {
+            console.log('Desktop LinkedIn success:', code);
+            setCode(code);
+          },
+          scope: 'email',
+          onError: (error: LinkedInOAuthError) => {
+            console.log('Desktop LinkedIn error:', error);
+            setErrorMessage(error.errorMessage);
+          },
+          debug: true,
+        }
+      : {
+          clientId: '',
+          redirectUri: '',
+          onSuccess: () => {},
+          onError: () => {},
+        },
+  );
 
   // Mobile LinkedIn login
   const { linkedInLogin: mobileLinkedInLogin, isLoading: isMobileLoading } =
-    useLinkedInMobile({
-      clientId: import.meta.env.VITE_LINKEDIN_CLIENT_ID || '86vhj2q7ukf83q',
-      redirectUri: `${
-        typeof window === 'object' && window.location.origin
-      }/linkedin`,
-      onSuccess: (code) => {
-        console.log('Mobile LinkedIn success:', code);
-        setMobileCode(code);
-        setMobileError('');
-      },
-      scope: 'email',
-      onError: (error: LinkedInOAuthError) => {
-        console.log('Mobile LinkedIn error:', error);
-        setMobileError(error.errorMessage);
-        setMobileCode('');
-      },
-      debug: true,
-      pollInterval: 1000,
-      maxPollAttempts: 300,
-    });
+    useLinkedInMobile(
+      currentView === 'mobile'
+        ? {
+            clientId:
+              import.meta.env.VITE_LINKEDIN_CLIENT_ID || '86vhj2q7ukf83q',
+            redirectUri: `${
+              typeof window === 'object' && window.location.origin
+            }/linkedin`,
+            onSuccess: (code) => {
+              console.log('Mobile LinkedIn success:', code);
+              setMobileCode(code);
+              setMobileError('');
+            },
+            scope: 'email',
+            onError: (error: LinkedInOAuthError) => {
+              console.log('Mobile LinkedIn error:', error);
+              setMobileError(error.errorMessage);
+              setMobileCode('');
+            },
+            debug: true,
+            fallbackCheckInterval: 2000, // Check every 2 seconds as fallback
+            maxWaitTime: 300000, // 5 minute timeout
+          }
+        : {
+            clientId: '',
+            redirectUri: '',
+            onSuccess: () => {},
+            onError: () => {},
+          },
+    );
 
   const isUserAgentMobile = () => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -162,7 +182,7 @@ function App() {
             <p
               style={{ fontSize: '14px', color: '#666', marginBottom: '10px' }}
             >
-              Uses localStorage polling for Flutter webview compatibility
+              Uses localStorage storage events + fallback checks for efficiency
             </p>
             <div
               style={{
@@ -175,11 +195,11 @@ function App() {
                 textAlign: 'left',
               }}
             >
-              <strong>How it works:</strong>
-              <br />• Opens LinkedIn OAuth in popup/new tab
-              <br />• Callback stores result in localStorage
-              <br />• Main app polls localStorage for result
-              <br />• Works when window.opener is unavailable
+              <strong>Efficient Implementation:</strong>
+              <br />• Real-time: Storage events trigger immediately
+              <br />• Fallback: Periodic checks every 2 seconds
+              <br />• Timeout: 5 minute maximum wait time
+              <br />• No aggressive polling - battery friendly
               <br />• Perfect for Flutter webviews
             </div>
             <button

@@ -51,21 +51,41 @@ The mobile implementation addresses key challenges when using LinkedIn OAuth2 in
 ### Authentication Flow
 
 1. **Initiation**: User clicks login button in main app
-2. **Popup Creation**: Mobile hook opens LinkedIn OAuth URL in popup/new tab
-3. **OAuth Process**: User authenticates with LinkedIn in popup
-4. **Callback Handling**: LinkedIn redirects to callback URL with auth code
-5. **Result Storage**: Callback component stores result in localStorage
-6. **Polling Detection**: Main app detects result via localStorage polling
-7. **Cleanup**: Popup closes and polling stops
+2. **Event Setup**: Main app sets up localStorage storage event listener
+3. **Popup Creation**: Mobile hook opens LinkedIn OAuth URL in popup/new tab
+4. **OAuth Process**: User authenticates with LinkedIn in popup
+5. **Callback Handling**: LinkedIn redirects to callback URL with auth code
+6. **Result Storage**: Callback component stores result in localStorage
+7. **Instant Detection**: Storage event triggers immediately in main app
+8. **Fallback Safety**: Periodic checks ensure no missed events
+9. **Cleanup**: Popup closes and listeners are removed
 
 ### Key Differences from Desktop
 
-| Aspect           | Desktop                     | Mobile                  |
-| ---------------- | --------------------------- | ----------------------- |
-| Communication    | `window.opener.postMessage` | localStorage polling    |
-| State Management | Event listeners             | Interval-based checking |
-| Popup Handling   | Direct window reference     | Storage-based detection |
-| Error Handling   | Immediate via events        | Polling-based discovery |
+| Aspect           | Desktop                     | Mobile                                 |
+| ---------------- | --------------------------- | -------------------------------------- |
+| Communication    | `window.opener.postMessage` | localStorage + storage events          |
+| State Management | Event listeners             | Storage events + fallback checks       |
+| Popup Handling   | Direct window reference     | Storage-based detection                |
+| Error Handling   | Immediate via events        | Event-based discovery                  |
+| Efficiency       | High (direct messaging)     | High (event-driven + minimal fallback) |
+
+### Why This Approach is Better
+
+**Previous Approach (Polling)**:
+
+- ❌ Continuous resource usage
+- ❌ Battery drain on mobile devices
+- ❌ Network overhead
+- ❌ Unnecessary load on main thread
+
+**New Approach (Storage Events + Fallback)**:
+
+- ✅ Instant response via storage events
+- ✅ Minimal resource usage
+- ✅ Battery-friendly
+- ✅ Fallback safety net
+- ✅ Cross-tab communication support
 
 ## Usage Examples
 
@@ -85,8 +105,8 @@ function MyComponent() {
     onError: (error) => {
       console.error('Auth error:', error);
     },
-    pollInterval: 1000, // Check every second
-    maxPollAttempts: 300, // Timeout after 5 minutes
+    fallbackCheckInterval: 2000, // Fallback check every 2 seconds
+    maxWaitTime: 300000, // Timeout after 5 minutes
     debug: true,
   });
 
@@ -110,8 +130,8 @@ function MyComponent() {
       redirectUri="your-mobile-callback-uri"
       onSuccess={(code) => console.log(code)}
       onError={(error) => console.error(error)}
-      pollInterval={2000}
-      maxPollAttempts={150}
+      fallbackCheckInterval={2000}
+      maxWaitTime={300000}
     >
       {({ linkedInLogin, isLoading }) => (
         <button
@@ -156,8 +176,8 @@ function LinkedInCallbackPage() {
 
 ### Mobile-Specific Options
 
-- **`pollInterval`**: Milliseconds between localStorage checks (default: 1000)
-- **`maxPollAttempts`**: Maximum polling attempts before timeout (default: 300)
+- **`fallbackCheckInterval`**: Milliseconds between fallback checks (default: 2000)
+- **`maxWaitTime`**: Maximum wait time in milliseconds before timeout (default: 300000 = 5 minutes)
 - **`debug`**: Enable detailed logging (default: false)
 
 ### Standard OAuth Options

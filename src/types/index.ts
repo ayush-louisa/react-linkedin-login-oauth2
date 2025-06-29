@@ -18,4 +18,8 @@ export type {
   UseLinkedInConfig,
   LinkedInComponentConfig,
   LinkedInCallbackConfig,
+  LinkedInMobileOptions,
+  UseLinkedInMobileConfig,
+  LinkedInMobileComponentConfig,
+  LinkedInMobileCallbackConfig,
 } from './components';
