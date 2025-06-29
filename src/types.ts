@@ -12,6 +12,7 @@ export interface useLinkedInType {
   state?: string;
   scope?: string;
   closePopupMessage?: string;
+  debug?: boolean;
 }
 
 export interface LinkedInType extends useLinkedInType {
