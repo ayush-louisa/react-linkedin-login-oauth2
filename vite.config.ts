@@ -17,10 +17,14 @@ export default defineConfig({
     cssCodeSplit: true,
     emptyOutDir: true,
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: 'ReactLinkedInLoginOAuth2',
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        components: resolve(__dirname, 'src/components/index.ts'),
+        hooks: resolve(__dirname, 'src/hooks/index.ts'),
+        core: resolve(__dirname, 'src/core/index.ts'),
+        types: resolve(__dirname, 'src/types/index.ts'),
+      },
       formats: ['es', 'cjs'],
-      fileName: (format) => `index.${format === 'es' ? 'esm' : 'cjs'}.js`,
     },
     rollupOptions: {
       external: ['react', 'react-dom'],
@@ -30,17 +34,32 @@ export default defineConfig({
         propertyReadSideEffects: false,
         unknownGlobalSideEffects: false,
       },
-      output: {
-        // Use named exports consistently
-        exports: 'named',
-        // Preserve modules for better tree-shaking
-        preserveModules: true,
-        preserveModulesRoot: 'src',
-        globals: {
-          react: 'React',
-          'react-dom': 'ReactDOM',
+      output: [
+        // ESM build
+        {
+          format: 'es',
+          entryFileNames: '[name].esm.js',
+          chunkFileNames: '[name]-[hash].esm.js',
+          exports: 'named',
+          preserveModules: false,
+          globals: {
+            react: 'React',
+            'react-dom': 'ReactDOM',
+          },
         },
-      },
+        // CJS build
+        {
+          format: 'cjs',
+          entryFileNames: '[name].cjs.js',
+          chunkFileNames: '[name]-[hash].cjs.js',
+          exports: 'named',
+          preserveModules: false,
+          globals: {
+            react: 'React',
+            'react-dom': 'ReactDOM',
+          },
+        },
+      ],
       // Additional rollup options for production builds
       ...(process.env.BUILD_MODE !== 'dev' && {
         plugins: [

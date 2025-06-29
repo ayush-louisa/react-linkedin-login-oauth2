@@ -10,6 +10,34 @@
   "main": "dist/index.cjs.js",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.esm.js",
+      "require": "./dist/index.cjs.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "import": "./dist/components/index.esm.js",
+      "require": "./dist/components/index.cjs.js"
+    },
+    "./hooks": {
+      "types": "./dist/hooks/index.d.ts",
+      "import": "./dist/hooks/index.esm.js",
+      "require": "./dist/hooks/index.cjs.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.esm.js",
+      "require": "./dist/core/index.cjs.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.esm.js",
+      "require": "./dist/types/index.cjs.js"
+    },
+    "./assets/*": "./assets/*"
+  },
   "sideEffects": false,
   "files": [
     "dist",
