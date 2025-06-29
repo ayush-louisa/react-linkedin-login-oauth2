@@ -1,25 +1,24 @@
+/**
+ * useLinkedIn hook - modular implementation
+ * @module hooks/useLinkedIn
+ */
+
 import { useCallback, useEffect, useRef } from 'react';
-import type { useLinkedInType } from './types';
-import { LINKEDIN_OAUTH2_STATE } from './utils';
-import { debug, setDebugMode } from './debug';
+import type { UseLinkedInConfig } from '../types/components';
+import type { LinkedInCallbackData } from '../types/base';
+import {
+  generateRandomString,
+  getPopupPositionProperties,
+} from '../core/utils';
+import { buildLinkedInAuthUrl } from '../core/url';
+import { getLinkedInState, setLinkedInState } from '../core/storage';
+import { createDebugLogger, setDebugMode } from '../core/debug';
 
-const getPopupPositionProperties = ({ width = 600, height = 600 }) => {
-  const left = screen.width / 2 - width / 2;
-  const top = screen.height / 2 - height / 2;
-  return `left=${left},top=${top},width=${width},height=${height}`;
-};
-
-const generateRandomString = (length = 20) => {
-  let result = '';
-  const characters =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const charactersLength = characters.length;
-  for (let i = 0; i < length; i++) {
-    result += characters.charAt(Math.floor(Math.random() * charactersLength));
-  }
-  return result;
-};
-
+/**
+ * React hook for LinkedIn OAuth2 authentication
+ * @param config - LinkedIn OAuth2 configuration
+ * @returns Object with linkedInLogin function
+ */
 export function useLinkedIn({
   redirectUri,
   clientId,
@@ -29,40 +28,41 @@ export function useLinkedIn({
   state = '',
   closePopupMessage = 'User closed the popup',
   debug: debugMode = false,
-}: useLinkedInType) {
+}: UseLinkedInConfig) {
   const popupRef = useRef<Window | null>(null);
   const popUpIntervalRef = useRef<number | null>(null);
+  const debugLogger = useRef(createDebugLogger('LinkedIn OAuth2')).current;
 
   // Initialize debug mode
   useEffect(() => {
     setDebugMode(debugMode);
-    debug.log('useLinkedIn initialized', {
+    debugLogger.log('useLinkedIn initialized', {
       redirectUri,
       clientId,
       scope,
       state: state || 'auto-generated',
       debugMode,
     });
-  }, [debugMode, redirectUri, clientId, scope, state]);
+  }, [debugMode, redirectUri, clientId, scope, state, debugLogger]);
 
   const receiveMessage = useCallback(
-    (event: MessageEvent) => {
-      debug.log('Received message event', {
+    (event: MessageEvent<LinkedInCallbackData>) => {
+      debugLogger.log('Received message event', {
         origin: event.origin,
         windowOrigin: window.location.origin,
         data: event.data,
       });
 
-      const savedState = localStorage.getItem(LINKEDIN_OAUTH2_STATE);
-      debug.log('Retrieved saved state for validation', { savedState });
+      const savedState = getLinkedInState();
+      debugLogger.log('Retrieved saved state for validation', { savedState });
 
       if (event.origin === window.location.origin) {
         if (event.data.errorMessage && event.data.from === 'Linked In') {
-          debug.log('Processing error message from LinkedIn callback');
+          debugLogger.log('Processing error message from LinkedIn callback');
 
           // Prevent CSRF attack by testing state
           if (event.data.state !== savedState) {
-            debug.error('State validation failed in error handler', {
+            debugLogger.error('State validation failed in error handler', {
               receivedState: event.data.state,
               savedState,
               match: event.data.state === savedState,
@@ -73,20 +73,23 @@ export function useLinkedIn({
             return;
           }
 
-          debug.log('Calling onError callback', event.data);
+          debugLogger.log('Calling onError callback', event.data);
           if (onError) {
-            onError(event.data);
+            onError({
+              error: event.data.error || 'unknown_error',
+              errorMessage: event.data.errorMessage,
+            });
           }
           if (popupRef.current) {
-            debug.log('Closing popup after error');
+            debugLogger.log('Closing popup after error');
             popupRef.current.close();
           }
         } else if (event.data.code && event.data.from === 'Linked In') {
-          debug.log('Processing success message with authorization code');
+          debugLogger.log('Processing success message with authorization code');
 
           // Prevent CSRF attack by testing state
           if (event.data.state !== savedState) {
-            debug.error('State validation failed in success handler', {
+            debugLogger.error('State validation failed in success handler', {
               receivedState: event.data.state,
               savedState,
               match: event.data.state === savedState,
@@ -98,83 +101,92 @@ export function useLinkedIn({
             return;
           }
 
-          debug.log('Calling onSuccess callback', { code: event.data.code });
+          debugLogger.log('Calling onSuccess callback', {
+            code: event.data.code,
+          });
           if (onSuccess) {
             onSuccess(event.data.code);
           }
           if (popupRef.current) {
-            debug.log('Closing popup after success');
+            debugLogger.log('Closing popup after success');
             popupRef.current.close();
           }
         }
       } else {
-        debug.warn('Message received from unauthorized origin', {
+        debugLogger.warn('Message received from unauthorized origin', {
           received: event.origin,
           expected: window.location.origin,
         });
       }
     },
-    [onError, onSuccess],
+    [onError, onSuccess, debugLogger],
   );
 
   useEffect(() => {
-    debug.log('Setting up cleanup function');
+    debugLogger.log('Setting up cleanup function');
     return () => {
-      debug.log('Cleaning up useLinkedIn hook');
+      debugLogger.log('Cleaning up useLinkedIn hook');
       window.removeEventListener('message', receiveMessage, false);
 
       if (popupRef.current) {
-        debug.log('Closing popup in cleanup');
+        debugLogger.log('Closing popup in cleanup');
         popupRef.current.close();
         popupRef.current = null;
       }
       if (popUpIntervalRef.current) {
-        if (popUpIntervalRef.current !== null) {
-          debug.log('Clearing popup interval in cleanup');
-          window.clearInterval(popUpIntervalRef.current);
-        }
+        debugLogger.log('Clearing popup interval in cleanup');
+        window.clearInterval(popUpIntervalRef.current);
         popUpIntervalRef.current = null;
       }
     };
-  }, [receiveMessage]);
+  }, [receiveMessage, debugLogger]);
 
   useEffect(() => {
-    debug.log('Adding message event listener');
+    debugLogger.log('Adding message event listener');
     window.addEventListener('message', receiveMessage, false);
     return () => {
-      debug.log('Removing message event listener');
+      debugLogger.log('Removing message event listener');
       window.removeEventListener('message', receiveMessage, false);
     };
-  }, [receiveMessage]);
+  }, [receiveMessage, debugLogger]);
 
-  const getUrl = () => {
-    const scopeParam = `&scope=${encodeURI(scope)}`;
+  const linkedInLogin = useCallback(() => {
+    debugLogger.log('Starting LinkedIn login process');
+
+    popupRef.current?.close();
+
     const generatedState = state || generateRandomString();
-    debug.log('Generated OAuth state', {
+    debugLogger.log('Generated OAuth state', {
       state: generatedState,
       wasProvided: !!state,
     });
 
-    localStorage.setItem(LINKEDIN_OAUTH2_STATE, generatedState);
-    debug.log('Saved state to localStorage');
+    const success = setLinkedInState(generatedState);
+    if (!success) {
+      debugLogger.error('Failed to save state to localStorage');
+      if (onError) {
+        onError({
+          error: 'storage_error',
+          errorMessage: 'Failed to save OAuth state',
+        });
+      }
+      return;
+    }
+    debugLogger.log('Saved state to localStorage');
 
-    const linkedInAuthLink = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}${scopeParam}&state=${generatedState}`;
-    debug.log('Generated LinkedIn OAuth URL', { url: linkedInAuthLink });
+    const authUrl = buildLinkedInAuthUrl({
+      clientId,
+      redirectUri,
+      scope,
+      state: generatedState,
+    });
+    debugLogger.log('Generated LinkedIn OAuth URL', { url: authUrl });
 
-    return linkedInAuthLink;
-  };
-
-  const linkedInLogin = () => {
-    debug.log('Starting LinkedIn login process');
-
-    popupRef.current?.close();
-    const authUrl = getUrl();
     const popupProperties = getPopupPositionProperties({
       width: 600,
       height: 600,
     });
-
-    debug.log('Opening popup window', {
+    debugLogger.log('Opening popup window', {
       url: authUrl,
       properties: popupProperties,
     });
@@ -182,18 +194,16 @@ export function useLinkedIn({
     popupRef.current = window.open(authUrl, '_blank', popupProperties);
 
     if (popUpIntervalRef.current) {
-      if (popUpIntervalRef.current !== null) {
-        debug.log('Clearing existing popup interval');
-        window.clearInterval(popUpIntervalRef.current);
-      }
+      debugLogger.log('Clearing existing popup interval');
+      window.clearInterval(popUpIntervalRef.current);
       popUpIntervalRef.current = null;
     }
 
-    debug.log('Setting up popup monitoring interval');
+    debugLogger.log('Setting up popup monitoring interval');
     popUpIntervalRef.current = window.setInterval(() => {
       try {
         if (popupRef.current && popupRef.current.closed) {
-          debug.log('Popup was closed by user');
+          debugLogger.log('Popup was closed by user');
 
           if (popUpIntervalRef.current !== null) {
             window.clearInterval(popUpIntervalRef.current);
@@ -201,7 +211,7 @@ export function useLinkedIn({
           popUpIntervalRef.current = null;
 
           if (onError) {
-            debug.log('Calling onError for popup closure', {
+            debugLogger.log('Calling onError for popup closure', {
               error: 'user_closed_popup',
               errorMessage: closePopupMessage,
             });
@@ -212,7 +222,7 @@ export function useLinkedIn({
           }
         }
       } catch (error) {
-        debug.error('Error in popup monitoring interval', error);
+        debugLogger.error('Error in popup monitoring interval', error);
         console.error(error);
         if (popUpIntervalRef.current !== null) {
           window.clearInterval(popUpIntervalRef.current);
@@ -220,7 +230,15 @@ export function useLinkedIn({
         popUpIntervalRef.current = null;
       }
     }, 1000);
-  };
+  }, [
+    clientId,
+    redirectUri,
+    scope,
+    state,
+    closePopupMessage,
+    onError,
+    debugLogger,
+  ]);
 
   return {
     linkedInLogin,

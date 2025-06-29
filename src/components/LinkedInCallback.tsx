@@ -1,36 +1,42 @@
+/**
+ * LinkedInCallback component - modular implementation
+ * @module components/LinkedInCallback
+ */
+
 import { useEffect, useState } from 'react';
-import { LINKEDIN_OAUTH2_STATE, parse } from './utils';
-import { debug, setDebugMode } from './debug';
+import type { LinkedInCallbackConfig } from '../types/components';
+import type { LinkedInCallbackParams } from '../types/base';
+import { parseUrlParams } from '../core/url';
+import { getLinkedInState } from '../core/storage';
+import { createDebugLogger, setDebugMode } from '../core/debug';
 
-type ParamsType = {
-  state: string;
-  code?: string;
-  error?: string;
-  error_description?: string;
-};
-
-interface LinkedInCallbackProps {
-  debug?: boolean;
-}
-
+/**
+ * LinkedIn OAuth2 callback component
+ * Handles the OAuth2 callback and posts results to parent window
+ * @param props - Callback component configuration
+ * @returns JSX element
+ */
 export function LinkedInCallback({
   debug: debugMode = false,
-}: LinkedInCallbackProps = {}) {
+}: LinkedInCallbackConfig = {}): JSX.Element {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
+    const debugLogger = createDebugLogger('LinkedIn OAuth2');
     setDebugMode(debugMode);
-    debug.log('LinkedInCallback initialized', { debugMode });
+    debugLogger.log('LinkedInCallback initialized', { debugMode });
 
-    const params = parse(window.location.search) as ParamsType;
-    debug.log('Parsed URL parameters', params);
+    const params = parseUrlParams(
+      window.location.search,
+    ) as unknown as LinkedInCallbackParams;
+    debugLogger.log('Parsed URL parameters', params);
 
-    const savedState = localStorage.getItem(LINKEDIN_OAUTH2_STATE);
-    debug.log('Retrieved saved state from localStorage', { savedState });
+    const savedState = getLinkedInState();
+    debugLogger.log('Retrieved saved state from localStorage', { savedState });
 
     if (params.state !== savedState) {
       const error = 'State does not match';
-      debug.error('State validation failed', {
+      debugLogger.error('State validation failed', {
         receivedState: params.state,
         savedState,
         match: params.state === savedState,
@@ -39,14 +45,14 @@ export function LinkedInCallback({
     } else if (params.error) {
       const errorMessage =
         params.error_description || 'Login failed. Please try again.';
-      debug.error('OAuth error received', {
+      debugLogger.error('OAuth error received', {
         error: params.error,
         errorDescription: params.error_description,
         finalErrorMessage: errorMessage,
       });
 
       if (window.opener) {
-        debug.log('Posting error message to parent window', {
+        debugLogger.log('Posting error message to parent window', {
           error: params.error,
           state: params.state,
           errorMessage,
@@ -62,24 +68,24 @@ export function LinkedInCallback({
           window.location.origin,
         );
       } else {
-        debug.warn('No window.opener available to post error message');
+        debugLogger.warn('No window.opener available to post error message');
       }
 
       // Close tab if user cancelled login
       if (params.error === 'user_cancelled_login') {
-        debug.log('User cancelled login, closing popup window');
+        debugLogger.log('User cancelled login, closing popup window');
         window.close();
       }
     }
 
     if (params.code) {
-      debug.log('Authorization code received', {
+      debugLogger.log('Authorization code received', {
         code: params.code,
         state: params.state,
       });
 
       if (window.opener) {
-        debug.log('Posting success message to parent window', {
+        debugLogger.log('Posting success message to parent window', {
           code: params.code,
           state: params.state,
           from: 'Linked In',
@@ -89,7 +95,7 @@ export function LinkedInCallback({
           window.location.origin,
         );
       } else {
-        debug.warn('No window.opener available to post success message');
+        debugLogger.warn('No window.opener available to post success message');
       }
     }
   }, [debugMode]);
