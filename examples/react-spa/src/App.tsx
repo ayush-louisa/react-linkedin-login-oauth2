@@ -2,8 +2,11 @@ import { useState } from 'react';
 import reactLogo from './assets/react.svg';
 import viteLogo from '/vite.svg';
 // Using main imports since this is a local example - consumers would use modular imports
-import { useLinkedIn, setDebugMode } from 'react-linkedin-login-oauth2';
-import type { LinkedInOAuthError } from 'react-linkedin-login-oauth2';
+import {
+  useLinkedIn,
+  setDebugMode,
+} from '@ayush-louisa/react-linkedin-login-oauth2';
+import type { LinkedInOAuthError } from '@ayush-louisa/react-linkedin-login-oauth2';
 import './App.css';
 
 // Enable debug mode globally
