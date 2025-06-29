@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import dts from 'vite-plugin-dts';
 import { resolve } from 'node:path';
@@ -14,6 +14,8 @@ export default defineConfig({
     }),
   ],
   build: {
+    cssCodeSplit: true,
+    emptyOutDir: true,
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
       name: 'ReactLinkedInLoginOAuth2',
@@ -22,7 +24,18 @@ export default defineConfig({
     },
     rollupOptions: {
       external: ['react', 'react-dom'],
+      // Enable tree-shaking optimizations
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+        unknownGlobalSideEffects: false,
+      },
       output: {
+        // Use named exports consistently
+        exports: 'named',
+        // Preserve modules for better tree-shaking
+        preserveModules: true,
+        preserveModulesRoot: 'src',
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
@@ -32,19 +45,19 @@ export default defineConfig({
       ...(process.env.BUILD_MODE !== 'dev' && {
         plugins: [
           // Drop console statements in production
-          {
-            name: 'drop-console',
-            renderChunk(code) {
-              const transformedCode = code.replace(
-                /console\.(log|info|warn|error|debug)\([^)]*\);?/g,
-                '',
-              );
-              return {
-                code: transformedCode,
-                map: null, // Explicitly set map to null since we're doing simple replacement
-              };
-            },
-          },
+          // {
+          //   name: 'drop-console',
+          //   renderChunk(code) {
+          //     const transformedCode = code.replace(
+          //       /console\.(log|info|warn|error|debug)\([^)]*\);?/g,
+          //       '',
+          //     );
+          //     return {
+          //       code: transformedCode,
+          //       map: null, // Explicitly set map to null since we're doing simple replacement
+          //     };
+          //   },
+          // },
         ],
       }),
     },
