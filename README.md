@@ -26,6 +26,7 @@ See [Usage](#usage) and [Demo](#demo) for instruction.
 - [Installation](#installation)
 - [Overview](#overview)
 - [Usage](#usage)
+- [Debug Logging](#debug-logging)
 - [Support IE](#support-ie)
 - [Demo](#demo)
 - [Props](#props)
@@ -44,6 +45,40 @@ npm install --save react-linkedin-login-oauth2@latest
 ## Overview
 
 We will trigger `linkedInLogin` by using `useLinkedIn` (recommended) or `LinkedIn` (using render props technique) after click on Sign in with LinkedIn button, a popup window will show up and ask for the permission. After we accepted, the pop up window will redirect to `redirectUri` (should be `LinkedInCallback` component) then notice its opener about the authorization code Linked In provides us. You can use [react-router-dom](https://reactrouter.com/web) or [Next.js's file system routing](https://nextjs.org/docs/routing/introduction)
+
+## Mobile Support (Flutter Webviews)
+
+**NEW!** Version 2.1+ includes mobile-optimized components for Flutter webview environments:
+
+- **`useLinkedInMobile`** hook - Uses localStorage polling instead of `window.opener.postMessage`
+- **`LinkedInMobile`** component - Render prop pattern with loading states
+- **`LinkedInMobileCallback`** component - Handles OAuth callback in mobile environments
+
+Perfect for Flutter apps using `webview_flutter`, `flutter_inappwebview`, or other mobile webview solutions where `window.opener` is not available.
+
+See [MOBILE_README.md](./MOBILE_README.md) for detailed mobile implementation guide.
+
+```js
+import { useLinkedInMobile } from 'react-linkedin-login-oauth2';
+
+function MobileLinkedInLogin() {
+  const { linkedInLogin, isLoading } = useLinkedInMobile({
+    clientId: 'your-client-id',
+    redirectUri: `${window.location.origin}/linkedin-mobile`,
+    onSuccess: (code) => console.log('Mobile auth success:', code),
+    onError: (error) => console.error('Mobile auth error:', error),
+    pollInterval: 1000, // Check every second
+    maxPollAttempts: 300, // 5 minute timeout
+    debug: true,
+  });
+
+  return (
+    <button onClick={linkedInLogin} disabled={isLoading}>
+      {isLoading ? 'Connecting...' : 'Login with LinkedIn (Mobile)'}
+    </button>
+  );
+}
+```
 
 ## Usage
 
@@ -66,6 +101,7 @@ function LinkedInPage() {
     onError: (error) => {
       console.log(error);
     },
+    debug: true, // Enable debug logging (optional, default: false)
   });
 
   return (
@@ -99,6 +135,7 @@ function LinkedInPage() {
       onError={(error) => {
         console.log(error);
       }}
+      debug={true} // Enable debug logging (optional, default: false)
     >
       {({ linkedInLogin }) => (
         <img
@@ -138,8 +175,61 @@ function Demo() {
 // pages/linkedin.js
 import { LinkedInCallback } from 'react-linkedin-login-oauth2';
 export default function LinkedInPage() {
-  return <LinkedInCallback />;
+  return <LinkedInCallback debug={true} />; // Enable debug logging (optional, default: false)
 }
+```
+
+## Debug Logging
+
+This library includes built-in debug logging to help you troubleshoot OAuth flow issues. Debug logging can be enabled by setting the `debug` prop to `true` on any of the components (`useLinkedIn`, `LinkedIn`, or `LinkedInCallback`).
+
+When debug mode is enabled, you'll see detailed console logs for:
+
+- OAuth URL generation and parameters
+- Popup window management
+- Message passing between windows
+- State validation (CSRF protection)
+- Error conditions and success flows
+- Parameter parsing and validation
+
+### Example with debug enabled:
+
+```js
+// Using the hook
+const { linkedInLogin } = useLinkedIn({
+  clientId: 'your-client-id',
+  redirectUri: 'your-redirect-uri',
+  onSuccess: (code) => console.log(code),
+  debug: true // This enables debug logging
+});
+
+// Or using the component
+<LinkedIn debug={true} /* other props */>
+  {({ linkedInLogin }) => (
+    <button onClick={linkedInLogin}>Login with LinkedIn</button>
+  )}
+</LinkedIn>
+
+// And in your callback page
+<LinkedInCallback debug={true} />
+```
+
+Debug logs are prefixed with `[LinkedIn OAuth2]` to make them easily identifiable in your browser's developer console.
+
+### Manual Debug Control
+
+You can also manually control debug logging using the exported utilities:
+
+```js
+import { setDebugMode, debug } from 'react-linkedin-login-oauth2';
+
+// Enable debug mode programmatically
+setDebugMode(true);
+
+// Use debug utilities in your own code
+debug.log('Custom message', { data: 'example' });
+debug.warn('Warning message');
+debug.error('Error message');
 ```
 
 # Support IE
@@ -155,21 +245,26 @@ export default function LinkedInPage() {
 
 - `LinkedIn` component:
 
-| Parameter   | value    | is required |                                                                                                default                                                                                                |
-| ----------- | -------- | :---------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
-| clientId    | string   |     yes     |                                                                                                                                                                                                       |
-| redirectUri | string   |     yes     |                                                                                                                                                                                                       |
-| onSuccess   | function |     yes     |                                                                                                                                                                                                       |
-| onError     | function |     no      |                                                                                                                                                                                                       |
-| state       | string   |     no      |                                                                      randomly generated string (recommend to keep default value)                                                                      |
-| scope       | string   |     no      |                                                                                           'r_emailaddress'                                                                                            |
-|             |          |             | See your app scope [here](https://docs.microsoft.com/en-us/linkedin/shared/authentication/authentication?context=linkedin/context#permission-types). If there are more than one, delimited by a space |
-| children    | function |     no      |                                                                         Require if using `LinkedIn` component (render props)                                                                          |
+| Parameter         | value    | is required |                                                                                                default                                                                                                |
+| ----------------- | -------- | :---------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| clientId          | string   |     yes     |                                                                                                                                                                                                       |
+| redirectUri       | string   |     yes     |                                                                                                                                                                                                       |
+| onSuccess         | function |     yes     |                                                                                                                                                                                                       |
+| onError           | function |     no      |                                                                                                                                                                                                       |
+| state             | string   |     no      |                                                                      randomly generated string (recommend to keep default value)                                                                      |
+| scope             | string   |     no      |                                                                                           'r_emailaddress'                                                                                            |
+|                   |          |             | See your app scope [here](https://docs.microsoft.com/en-us/linkedin/shared/authentication/authentication?context=linkedin/context#permission-types). If there are more than one, delimited by a space |
+| debug             | boolean  |     no      |                                                                                                 false                                                                                                 |
+| closePopupMessage | string   |     no      |                                                                                        'User closed the popup'                                                                                        |
+| children          | function |     no      |                                                                         Require if using `LinkedIn` component (render props)                                                                          |
 
 Reference: [https://docs.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow?context=linkedin/context#step-2-request-an-authorization-code](https://docs.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow?context=linkedin/context#step-2-request-an-authorization-code)
 
-- `LinkedInCallback` component:  
-  No parameters needed
+- `LinkedInCallback` component:
+
+| Parameter | value   | is required | default |
+| --------- | ------- | :---------: | :-----: |
+| debug     | boolean |     no      |  false  |
 
 ## Issues
 

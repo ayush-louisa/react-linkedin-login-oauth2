@@ -1,0 +1,28 @@
+# Source
+src
+tests
+.storybook
+stories
+
+# Config files
+.eslintrc.json
+.prettierrc
+tsconfig.json
+vite.config.ts
+jest.config.js
+
+# Dev folders
+coverage
+storybook-static
+
+# CI/CD
+.github
+
+# Git
+.git
+.gitignore
+
+# Misc
+.DS_Store
+*.log
+.env*
