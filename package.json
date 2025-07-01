@@ -3,7 +3,7 @@
   "version": "3.0.0",
   "description": "React component for Linked In Log In feature using OAuth 2.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=18"
   },
   "packageManager": "npm@10.9.2",
   "type": "module",
