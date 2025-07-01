@@ -22,21 +22,21 @@ export function LinkedInCallback({
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   useEffect(() => {
-    const debugLogger = createDebugLogger('LinkedIn OAuth2');
+    const logger = createDebugLogger('LinkedIn OAuth2');
     setDebugMode(debugMode);
-    debugLogger.log('LinkedInCallback initialized', { debugMode });
+    logger.log('LinkedInCallback initialized', { debugMode });
 
     const params = parseUrlParams(
       window.location.search,
     ) as unknown as LinkedInCallbackParams;
-    debugLogger.log('Parsed URL parameters', params);
+    logger.log('Parsed URL parameters', params);
 
     const savedState = getLinkedInState();
-    debugLogger.log('Retrieved saved state from localStorage', { savedState });
+    logger.log('Retrieved saved state from localStorage', { savedState });
 
     if (params.state !== savedState) {
       const error = 'State does not match';
-      debugLogger.error('State validation failed', {
+      logger.error('State validation failed', {
         receivedState: params.state,
         savedState,
         match: params.state === savedState,
@@ -47,7 +47,7 @@ export function LinkedInCallback({
     } else if (params.error) {
       const errorMessage =
         params.error_description || 'Login failed. Please try again.';
-      debugLogger.error('OAuth error received', {
+      logger.error('OAuth error received', {
         error: params.error,
         errorDescription: params.error_description,
         finalErrorMessage: errorMessage,
@@ -57,7 +57,7 @@ export function LinkedInCallback({
       clearLinkedInState();
 
       if (window.opener) {
-        debugLogger.log('Posting error message to parent window', {
+        logger.log('Posting error message to parent window', {
           error: params.error,
           state: params.state,
           errorMessage,
@@ -73,7 +73,7 @@ export function LinkedInCallback({
           window.location.origin,
         );
       } else {
-        debugLogger.warn('No window.opener available to post error message');
+        logger.warn('No window.opener available to post error message');
       }
 
       // Close tab if user cancelled login or authorization
@@ -81,22 +81,21 @@ export function LinkedInCallback({
         params.error === 'user_cancelled_login' ||
         params.error === 'user_cancelled_authorize'
       ) {
-        debugLogger.log(
-          'User cancelled login/authorization, closing popup window',
-          { error: params.error },
-        );
+        logger.log('User cancelled login/authorization, closing popup window', {
+          error: params.error,
+        });
         window.close();
       }
     }
 
     if (params.code) {
-      debugLogger.log('Authorization code received', {
+      logger.log('Authorization code received', {
         code: params.code,
         state: params.state,
       });
 
       if (window.opener) {
-        debugLogger.log('Posting success message to parent window', {
+        logger.log('Posting success message to parent window', {
           code: params.code,
           state: params.state,
           from: 'Linked In',
@@ -106,7 +105,7 @@ export function LinkedInCallback({
           window.location.origin,
         );
       } else {
-        debugLogger.warn('No window.opener available to post success message');
+        logger.warn('No window.opener available to post success message');
       }
     }
   }, [debugMode]);
